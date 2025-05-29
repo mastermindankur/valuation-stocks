@@ -1,0 +1,307 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Intrinsic Value Calculator</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <style>
+        body {
+            font-family: sans-serif;
+            line-height: 1.6;
+            margin: 0; /* Remove default body margin */
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            max-width: 800px; /* Increase max-width to accommodate table */
+            margin: 20px auto; /* Add margin top/bottom and auto for center */
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h1, h2 {
+            text-align: center;
+            color: #0056b3; /* Keep custom heading color */
+            margin-bottom: 20px; /* Add spacing below headings */
+        }
+        form div {
+            margin-bottom: 15px;
+        }
+        label {
+            /* Bootstrap's form-label class handles this */
+        }
+        /* Remove custom input styling */
+        /* input[type="text"], input[type="number"] { }
+        button { } */
+
+        .results, .error {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        /* Bootstrap provides alert classes */
+        /* .results { background-color: #e9ecef; border: 1px solid #dee2e6; } */
+        /* .error { background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; } */
+
+        .results p, .error p {
+            margin: 5px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        /* Keep custom table styling for borders/alignment */
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: right; /* Align numbers to the right */
+        }
+        th {
+            background-color: #007bff; /* Keep custom header color */
+            color: white;
+            text-align: center;
+        }
+        td:first-child, th:first-child {
+            text-align: left; /* Keep the first column left-aligned */
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        .summary-box {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            background-color: #e9ecef;
+        }
+        .summary-box p {
+            margin: 8px 0;
+            font-size: 1.1em;
+        }
+        .summary-box strong {
+            color: #0056b3; /* Keep custom strong color */
+        }
+
+        /* Remove slider-specific styles */
+        /* input[type="range"] { }
+        .slider-container { }
+        .slider-value { }
+        .slider-container input[type="range"].form-range { } */
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="my-4">Stock Intrinsic Value Calculator</h1> <!-- Add margin with Bootstrap class -->
+
+        <div class="card mb-4">
+             <div class="card-header">Input Parameters</div>
+             <div class="card-body">
+                 <form action="/calculate" method="post">
+                     <div class="mb-3"> <!-- Use Bootstrap margin class -->
+                         <label for="ticker" class="form-label">Stock Ticker (e.g., TCS.BO, RELIANCE.BO):</label>
+                         <input type="text" class="form-control" id="ticker" name="ticker" required value="{{ request.form.get('ticker', '') }}"> <!-- Apply Bootstrap form-control -->
+                     </div>
+
+                     <h4 class="mt-4 mb-3">Assumptions:</h4> {# Changed to h4 as inside card-body #}
+                     <p class="form-text text-muted"><small>Adjust the key inputs below to see how they affect the intrinsic value calculation.</small></p>
+
+                     <h5 class="mt-4 mb-2">Projection Period Growth Rates (Years 1-10):</h5> {# Changed to h5 #}
+                     <p class="form-text text-muted mb-3"><small>Specify the expected annual growth rates for the company's Free Cash Flow during the explicit 10-year projection period.</small></p>
+
+                     <!-- Toggle button for optional CAGR overrides -->
+                     <button class="btn btn-link p-0 mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#cagrCollapse" aria-expanded="false" aria-controls="cagrCollapse">
+                         Customize Growth Assumptions
+                     </button>
+
+                     <!-- Collapsible section for optional CAGR overrides -->
+                     <div class="collapse" id="cagrCollapse">
+                         <div class="row">
+                             <div class="col-md-6 mb-3"> {# Use Bootstrap grid #}
+                                 <label for="initial_cagr" class="form-label">Initial CAGR (Years 1-5) Override (Optional):</label>
+                                 <p class="form-text text-muted"><small>How fast the company is expected to grow each year for the first 5 years. Enter a whole number percentage (e.g., 5 for 5%). Leave blank to use historical CAGR.</small></p>
+                                 <input type="number" class="form-control" id="initial_cagr" name="initial_cagr" step="1" min="-20" max="30" value="{{ request.form.get('initial_cagr', '') }}" placeholder="e.g., 5">
+                                 <small class="form-text text-muted">Leave blank to use historical CAGR.</small>
+                             </div> {# End col #}
+
+                             <div class="col-md-6 mb-3"> {# Use Bootstrap grid #}
+                                 <label for="reduced_cagr" class="form-label">Reduced CAGR (Years 6-10) Override (Optional):</label>
+                                 <p class="form-text text-muted"><small>Expected yearly growth after year 5, as the company matures. Enter a whole number percentage (e.g., 2 for 2%). Leave blank to use 50% of Initial CAGR.</small></p>
+                                 <input type="number" class="form-control" id="reduced_cagr" name="reduced_cagr" step="1" min="-10" max="20" value="{{ request.form.get('reduced_cagr', '') }}" placeholder="e.g., 2">
+                                 <small class="form-text text-muted">Leave blank to use 50% of Initial CAGR.</small>
+                             </div> {# End col #}
+                         </div> {# End row #}
+                     </div> {# End collapse div #}
+
+                     <h5 class="mt-4 mb-2">Discount Rate and Terminal Value Assumptions:</h5> {# Changed to h5 #}
+                      <p class="form-text text-muted mb-3"><small>These inputs determine the present value of future cash flows and the estimated value of the company beyond the projection period.</small></p>
+
+                     <div class="row">
+                         <div class="col-md-6 mb-3"> {# Use Bootstrap grid #}
+                             <label for="discount_rate" class="form-label">Discount Rate:</label>
+                             <p class="form-text text-muted"><small>How much return do you expect on this investment each year? Example: Use 10% for a normal company, 12-15% for riskier ones.</small></p>
+                             <select class="form-select" id="discount_rate" name="discount_rate">
+                                 {% for i in range(0, 31) %}
+                                     <option value="{{ i / 100.0 }}" {% if request.form.get('discount_rate', '0.10')|float == (i / 100.0) %} selected {% endif %}>{{ i }}%</option>
+                                 {% endfor %}
+                             </select>
+                         </div> {# End col #}
+
+                         <div class="col-md-6 mb-3"> {# Use Bootstrap grid #}
+                             <label for="terminal_growth_rate" class="form-label">Terminal Growth Rate (Year 10+):</label>
+                             <p class="form-text text-muted"><small>How much the company might grow each year after 10 years, forever. Usually 2–4%. Similar to inflation or GDP growth.</small></p>
+                             <select class="form-select" id="terminal_growth_rate" name="terminal_growth_rate">
+                                 {% for i in range(0, 60, 5) %}
+                                      <option value="{{ i / 1000.0 }}" {% if request.form.get('terminal_growth_rate', '0.02')|float == (i / 1000.0) %} selected {% endif %}>{{ (i / 10.0) }}%</option>
+                                 {% endfor %}
+                             </select>
+                         </div> {# End col #}
+                     </div> {# End row #}
+
+                     <button type="submit" class="btn btn-primary">Calculate</button>
+                 </form>
+             </div> {# End card-body #}
+         </div> {# End card #}
+
+         {% if error %}
+             <div class="alert alert-danger mt-4" role="alert"> <!-- Use Bootstrap alert classes -->
+                 <p>Error: {{ error }}</p>
+             </div>
+         {% elif results %}
+             <div class="results mt-4"> <!-- Add margin top -->
+                 <h2 class="mb-3">Valuation Analysis for {{ results.ticker }}</h2> <!-- Add margin bottom -->
+
+                 <div class="card mb-4">
+                     <div class="card-header">Assumptions</div>
+                     <div class="card-body">
+                         <p>Historical CAGR: {{ "{:,.2f}%".format(results.historical_cagr * 100) if results.historical_cagr is not none else "N/A" }}</p>
+                         <p>Initial Projection CAGR Used: {{ "{:,.2f}%".format(results.initial_cagr_used * 100) if results.initial_cagr_used is not none else "N/A" }}</p>
+                         <p>Reduced Projection CAGR Used: {{ "{:,.2f}%".format(results.reduced_cagr_used * 100) if results.reduced_cagr_used is not none else "N/A" }}</p>
+                         <p>Discount Rate: {{ "{:,.2f}%".format(results.discount_rate * 100) }}</p>
+                         <p>Terminal Growth Rate: {{ "{:,.2f}%".format(results.terminal_growth_rate * 100) }}</p>
+                         <p>Last Reported FCF: ₹{{ "{:,.2f}".format(results.last_fcf / 1e7) }} Cr</p>
+                     </div> {# End card-body #}
+                 </div> {# End card #}
+
+                 <div class="card mb-4">
+                     <div class="card-header">Projected and Discounted Free Cash Flows</div>
+                     <div class="card-body">
+                         <p class="form-text text-muted mb-3"><small>The estimated value of the company for next 10 years.</small></p>
+                         <table class="table table-striped table-bordered mb-0"> {# Added mb-0 to remove bottom margin #}
+                             <thead>
+                                 <tr>
+                                     <th>Year</th>
+                                     <th>CAGR Used</th>
+                                     <th>Projected FCF (₹ Cr)</th>
+                                     <th>Discount Factor</th>
+                                     <th>Discounted FCF (₹ Cr)</th>
+                                 </tr>
+                             </thead>
+                             <tbody>
+                                 {% for i in range(results.future_fcfs|length) %}
+                                 <tr>
+                                     <td>{{ i + 1 }}</td>
+                                     <td>
+                                         {% if i + 1 <= 5 %}
+                                             {{ "{:,.2f}%".format(results.initial_cagr_used * 100) if results.initial_cagr_used is not none else "N/A" }}
+                                         {% else %}
+                                             {{ "{:,.2f}%".format(results.reduced_cagr_used * 100) if results.reduced_cagr_used is not none else "N/A" }}
+                                         {% endif %}
+                                     </td>
+                                     <td>₹{{ "{:,.2f}".format(results.future_fcfs[i] / 1e7) }}</td>
+                                     <td>{{ "{:,.4f}".format(1 / ((1 + results.discount_rate)**(i + 1))) }}</td>
+                                     <td>₹{{ "{:,.2f}".format(results.discounted_fcfs[i] / 1e7) }}</td>
+                                 </tr>
+                                 {% endfor %}
+                             </tbody>
+                             <tfoot>
+                                  <tr>
+                                      <td><strong>Total</strong></td>
+                                      <td></td>{# Empty cell for CAGR Used #}
+                                      <td><strong>₹{{ "{:,.2f}".format(results.future_fcfs|sum / 1e7) }}</strong></td>
+                                      <td></td>{# Empty cell for Discount Factor #}
+                                      <td><strong><span style="color: green;">₹{{ "{:,.2f}".format(results.discounted_fcfs|sum / 1e7) }}</span></strong></td>
+                                  </tr>
+                              </tfoot>
+                          </table>
+                     </div> {# End card-body #}
+                 </div> {# End card #}
+
+                 <div class="card mb-4">
+                     <div class="card-header">Terminal Value Calculation</div>
+                     <div class="card-body">
+                         <p class="form-text text-muted mb-3"><small>The estimated value of the company beyond the explicit 10-year projection period.</small></p>
+                         <p><strong>Terminal Value (at Year 10):</strong> ₹{{ "{:,.2f}".format((results.future_fcfs[-1] * (1 + results.terminal_growth_rate) / (results.discount_rate - results.terminal_growth_rate)) / 1e7) }} Cr</p> {# Calculate TV again for display #}
+                         <p><strong>Discounted Terminal Value (Present Value):</strong> <span style="color: orange;">₹{{ "{:,.2f}".format(results.discounted_terminal_value / 1e7) }} Cr</span></p>
+                     </div> {# End card-body #}
+                 </div> {# End card #}
+
+                 <div class="card mb-4">
+                      <div class="card-header">Summary</div>
+                      <div class="card-body">
+                         <p><strong>Outstanding Shares:</strong> {{ "{:,.0f}".format(results.outstanding_shares) }}</p>
+                         <p><strong>Sum of Discounted Projected FCFs (Years 1-10):</strong> <span style="color: green;">₹{{ "{:,.2f}".format(results.discounted_fcfs|sum / 1e7) }} Cr</span></p> {# Reference sum of discounted_fcfs #}
+                        <p><strong>Discounted Terminal Value:</strong> <span style="color: orange;">₹{{ "{:,.2f}".format(results.discounted_terminal_value / 1e7) }} Cr</span></p>
+                        <p><strong>Total Intrinsic Value (Enterprise Value):</strong> <span style="color: purple;">₹{{ "{:,.2f}".format(results.intrinsic_value_total / 1e7) }} Cr</span></p>
+
+                          <div class="row mt-2 mb-4"> {# Add some margin to the row #}
+                              <div class="col-md-6">
+                                  <div class="card text-center h-100"> {# h-100 for equal height cards #}
+                                      <div class="card-body d-flex flex-column justify-content-center"> {# Use flexbox for centering content vertically #}
+                                          <h5 class="card-title">Intrinsic Value Per Share</h5>
+                                          <p class="card-text" style="font-size: 1.8em; font-weight: bold; color: #0056b3;">
+                                              ₹{{ "{:,.2f}".format(results.intrinsic_value_per_share) }}
+                                          </p>
+                                      </div>
+                                  </div>
+                              </div>
+                              <div class="col-md-6">
+                                  <div class="card text-center h-100"> {# h-100 for equal height cards #}
+                                      <div class="card-body d-flex flex-column justify-content-center"> {# Use flexbox for centering content vertically #}
+                                          <h5 class="card-title">Current Market Price</h5>
+                                           {% if results.current_price != "N/A" %}
+                                              <p class="card-text" style="font-size: 1.8em; font-weight: bold;">
+                                                  ₹{{ "{:,.2f}".format(results.current_price) }}
+                                              </p>
+                                           {% else %}
+                                               <p class="card-text" style="font-size: 1.8em; font-weight: bold; color: gray;">N/A</p>
+                                           {% endif %}
+                                      </div>
+                                  </div>
+                              </div>
+                           </div>
+
+                           {% if results.current_price != "N/A" %}
+                               {% set margin_of_safety = (results.intrinsic_value_per_share - results.current_price) / results.intrinsic_value_per_share * 100 %}
+                               <div class="mb-4 p-3 text-center {% if margin_of_safety > 0 %}alert alert-success{% elif margin_of_safety < 0 %}alert alert-danger{% else %}alert alert-info{% endif %}>
+                                    <h4 class="mb-0">
+                                        {% if margin_of_safety > 0 %}
+                                            Current Price is Lower than Intrinsic Value
+                                        {% elif margin_of_safety < 0 %}
+                                            Current Price is Higher than Intrinsic Value
+                                        {% else %}
+                                            Current Price is Approximately Equal to Intrinsic Value
+                                        {% endif %}
+                                    </h4>
+                                     <p class="mb-0"><small>Margin of Safety: {{ "{:,.2f}%".format(margin_of_safety) }}</small></p>
+                               </div>
+                           {% elif results %}
+                                <div class="mt-4 p-3 text-center alert alert-warning" role="alert">
+                                   <h4 class="mb-0">Cannot Compare: Current Market Price Not Available</h4>
+                                </div>
+                           {% endif %}
+                       </div> {# End card-body #}
+                   </div> {# End card #}
+             </div>
+         {% endif %}
+     </div>
+
+     <!-- Bootstrap Bundle with Popper -->
+     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+</body>
+</html>
