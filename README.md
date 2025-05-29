@@ -51,7 +51,7 @@ To deploy this project, follow these steps:
     ```
     Alternatively, you can run directly:
     ```bash
-    python app.py
+    uv run app.py
     ```
 
 5.  **Access the application:**
