@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, jsonify
+import csv
 
 # Assuming your existing files are in the same directory or accessible
 # from the directory where you run this Flask app
@@ -7,15 +8,46 @@ from data import get_stock_ticker, get_current_price
 
 app = Flask(__name__)
 
+def load_stock_list(csv_filepath="ind_nifty200list.csv"):
+    """
+    Reads the stock list from a CSV file and returns a list of dictionaries.
+    Each dictionary contains 'Company Name' and 'Symbol'.
+    """
+    stock_list = []
+    try:
+        with open(csv_filepath, mode='r', encoding='utf-8') as csvfile:
+            reader = csv.DictReader(csvfile)
+            # Assuming the CSV has 'Company Name' and 'Symbol' columns
+            for row in reader:
+                # Basic check to ensure required columns exist
+                if 'Company Name' in row and 'Symbol' in row:
+                     # Optionally filter for EQ series if needed, but for autocomplete, include all
+                    stock_list.append({
+                        'Company Name': row['Company Name'],
+                        'Symbol': row['Symbol']
+                    })
+                else:
+                    print(f"Warning: Skipping row due to missing columns: {row}")
+    except FileNotFoundError:
+        print(f"Error: CSV file not found at {csv_filepath}")
+        # Return an empty list or raise an error as appropriate
+        return [] # Return empty list if file not found
+    except Exception as e:
+        print(f"Error reading CSV file {csv_filepath}: {e}")
+        return [] # Return empty list on other errors
+    return stock_list
+
 @app.route('/')
 def index():
     """Render the main form page."""
-    # Render with empty results/error and no initial form data
-    return render_template('index.html', results={}, error=None, form_data={})
+    stock_list = load_stock_list()
+    # Render with empty results/error and no initial form data, passing stock_list
+    return render_template('index.html', results={}, error=None, form_data={}, stock_list=stock_list)
 
 @app.route('/calculate', methods=['POST'])
 def calculate():
     """Handle the calculation request."""
+    stock_list = load_stock_list() # Load stock list for rendering the page again
     # Get form data. request.form is a dictionary-like object.
     form_data = request.form
     ticker_symbol = form_data.get('ticker')
@@ -34,11 +66,11 @@ def calculate():
         reduced_cagr = float(reduced_cagr_str) / 100.0 if reduced_cagr_str else None
 
     except ValueError as e:
-        # Pass form data back on error to retain user input
-        return render_template('index.html', error=f"Invalid input for numerical fields: {e}", form_data=form_data)
+        # Pass form data back on error to retain user input, also pass stock_list
+        return render_template('index.html', error=f"Invalid input for numerical fields: {e}", form_data=form_data, stock_list=stock_list)
     except Exception as e:
-        # Pass form data back on error to retain user input
-        return render_template('index.html', error=f"An unexpected error occurred with form data: {e}", form_data=form_data)
+        # Pass form data back on error to retain user input, also pass stock_list
+        return render_template('index.html', error=f"An unexpected error occurred with form data: {e}", form_data=form_data, stock_list=stock_list)
 
     results = {}
     error = None
@@ -90,11 +122,11 @@ def calculate():
         # Catch any errors during data fetching or calculation
         error = f"An error occurred during calculation: {e}"
         print(f"Calculation Error: {e}") # Print error for debugging
-        # Pass form data back on error to retain user input
-        return render_template('index.html', results={}, error=error, form_data=form_data)
+        # Pass form data back on error to retain user input, also pass stock_list
+        return render_template('index.html', results={}, error=error, form_data=form_data, stock_list=stock_list)
 
-    # Render the index page again, passing the results, error (should be None here), and form_data
-    return render_template('index.html', results=results, error=error, form_data=form_data)
+    # Render the index page again, passing the results, error (should be None here), form_data, and stock_list
+    return render_template('index.html', results=results, error=error, form_data=form_data, stock_list=stock_list)
 
 if __name__ == '__main__':
     app.run(debug=True)

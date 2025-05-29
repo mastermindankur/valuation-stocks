@@ -105,7 +105,12 @@
                  <form action="/calculate" method="post">
                      <div class="mb-3"> <!-- Use Bootstrap margin class -->
                          <label for="ticker" class="form-label">Stock Ticker (e.g., TCS.BO, RELIANCE.BO):</label>
-                         <input type="text" class="form-control" id="ticker" name="ticker" required value="{{ request.form.get('ticker', '') }}"> <!-- Apply Bootstrap form-control -->
+                         <input type="text" class="form-control" id="ticker" name="ticker" required value="{{ request.form.get('ticker', '') }}" list="stockSuggestions"> <!-- Apply Bootstrap form-control -->
+                         <datalist id="stockSuggestions">
+                             {% for row in stock_list %}
+                             <option value="{{ row['Company Name'] }} ({{ row['Symbol'] }}.NS)">
+                             {% endfor %}
+                         </datalist>
                      </div>
 
                      <h4 class="mt-4 mb-3">Assumptions:</h4> {# Changed to h4 as inside card-body #}
@@ -303,5 +308,31 @@
 
      <!-- Bootstrap Bundle with Popper -->
      <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+
+     <script>
+         // JavaScript to extract only the ticker symbol from datalist selection
+         document.addEventListener('DOMContentLoaded', function() {
+             const tickerInput = document.getElementById('ticker');
+             const stockDatalist = document.getElementById('stockSuggestions');
+
+             tickerInput.addEventListener('input', function() {
+                 const currentValue = this.value;
+
+                 // Check if the current input value matches any datalist option value
+                 for (const option of stockDatalist.options) {
+                     if (option.value === currentValue) {
+                         // If a match is found, extract the symbol (including .NS)
+                         const match = currentValue.match(/\((.+)\)/);
+                         if (match && match[1]) {
+                             // Set the input value to just the extracted symbol
+                             this.value = match[1];
+                         }
+                         // Exit the loop once a match is found and processed
+                         break;
+                     }
+                 }
+             });
+         });
+     </script>
 </body>
 </html>
